@@ -46,7 +46,7 @@ if (savedCreds) {
 // --- Helper: check auth before API call ---
 function requireAuth(): string | null {
   if (!client.isAuthenticated()) {
-    return "Not authenticated. Please call the 'authenticate' tool first to login via SSO.";
+    return "Not authenticated. Please call the 'yapi-auth' tool first to login via SSO.";
   }
   return null;
 }
@@ -57,14 +57,14 @@ const server = new McpServer({
   version: "1.0.0",
 });
 
-// Tool 0: authenticate
+// Tool 0: yapi-auth
 server.tool(
-  "authenticate",
+  "yapi-auth",
   "Login to YApi via SSO QR code scan. Opens browser for authentication.",
   {},
   async () => {
     if (client.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Already authenticated. Use 'logout' tool to re-authenticate." }] };
+      return { content: [{ type: "text", text: "Already authenticated. Use 'yapi-logout' tool to re-authenticate." }] };
     }
     try {
       const creds = await startSsoLogin(ssoConfig);
@@ -76,15 +76,15 @@ server.tool(
   }
 );
 
-// Tool: logout
+// Tool: yapi-logout
 server.tool(
-  "logout",
+  "yapi-logout",
   "Clear saved YApi credentials and logout.",
   {},
   async () => {
     clearCredentials();
     client.setCredentials(null as any);
-    return { content: [{ type: "text", text: "Logged out. Call 'authenticate' to login again." }] };
+    return { content: [{ type: "text", text: "Logged out. Call 'yapi-auth' to login again." }] };
   }
 );
 

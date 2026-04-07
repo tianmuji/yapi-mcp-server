@@ -71,7 +71,7 @@ if (savedCreds) {
 // --- Helper: check auth before API call ---
 function requireAuth() {
     if (!client.isAuthenticated()) {
-        return "Not authenticated. Please call the 'authenticate' tool first to login via SSO.";
+        return "Not authenticated. Please call the 'yapi-auth' tool first to login via SSO.";
     }
     return null;
 }
@@ -80,10 +80,10 @@ const server = new mcp_js_1.McpServer({
     name: "yapi",
     version: "1.0.0",
 });
-// Tool 0: authenticate
-server.tool("authenticate", "Login to YApi via SSO QR code scan. Opens browser for authentication.", {}, async () => {
+// Tool 0: yapi-auth
+server.tool("yapi-auth", "Login to YApi via SSO QR code scan. Opens browser for authentication.", {}, async () => {
     if (client.isAuthenticated()) {
-        return { content: [{ type: "text", text: "Already authenticated. Use 'logout' tool to re-authenticate." }] };
+        return { content: [{ type: "text", text: "Already authenticated. Use 'yapi-logout' tool to re-authenticate." }] };
     }
     try {
         const creds = await (0, auth_js_1.startSsoLogin)(ssoConfig);
@@ -94,11 +94,11 @@ server.tool("authenticate", "Login to YApi via SSO QR code scan. Opens browser f
         return { content: [{ type: "text", text: `Authentication failed: ${err.message}` }] };
     }
 });
-// Tool: logout
-server.tool("logout", "Clear saved YApi credentials and logout.", {}, async () => {
+// Tool: yapi-logout
+server.tool("yapi-logout", "Clear saved YApi credentials and logout.", {}, async () => {
     (0, auth_js_1.clearCredentials)();
     client.setCredentials(null);
-    return { content: [{ type: "text", text: "Logged out. Call 'authenticate' to login again." }] };
+    return { content: [{ type: "text", text: "Logged out. Call 'yapi-auth' to login again." }] };
 });
 // Tool 1: list_apis
 server.tool("list_apis", "List all API interfaces grouped by category for a YApi project", {
