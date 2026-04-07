@@ -20,16 +20,7 @@
 
 ## 安装
 
-### 1. 克隆并构建
-
-```bash
-git clone https://github.com/tianmuji/yapi-mcp-server.git ~/yapi-mcp-server
-cd ~/yapi-mcp-server
-npm install
-npm run build
-```
-
-### 2. 配置 DNS 解析
+### 1. 配置 DNS 解析
 
 回调域名需要解析到 `127.0.0.1`，在 `/etc/hosts` 中添加：
 
@@ -37,7 +28,7 @@ npm run build
 127.0.0.1 yapi-mcp-auth.camscanner.com
 ```
 
-### 3. 注册到 Claude Code
+### 2. 注册到 Claude Code
 
 编辑 `~/.claude/.mcp.json`，在 `mcpServers` 中添加：
 
@@ -45,8 +36,8 @@ npm run build
 {
   "mcpServers": {
     "yapi": {
-      "command": "node",
-      "args": ["${HOME}/yapi-mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "github:tianmuji/yapi-mcp-server"],
       "env": {
         "YAPI_BASE_URL": "https://web-api.intsig.net",
         "SSO_LOGIN_URL": "https://web-sso.intsig.net/login",
@@ -61,9 +52,11 @@ npm run build
 
 > 如果文件中已有其他 MCP 配置，将 `yapi` 部分合并到 `mcpServers` 对象中即可。
 
-### 4. 重启 Claude Code
+### 3. 重启 Claude Code
 
-重启后在对话中输入 `authenticate` 完成 SSO 扫码登录即可使用。
+重启后在对话中调用 `authenticate` 完成 SSO 扫码登录即可使用。
+
+无需克隆仓库，`npx` 会自动从 GitHub 下载并运行。
 
 ## 环境变量说明
 
