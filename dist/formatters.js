@@ -97,6 +97,12 @@ function formatProjectInfo(data) {
     if (data.tag?.length > 0) {
         lines.push(`**Tags:** ${data.tag.map((t) => t.name).join(", ")}`);
     }
+    if (data.env?.length > 0) {
+        lines.push("\n## Environments");
+        for (const e of data.env) {
+            lines.push(`  - **${e.name}**: ${e.domain}`);
+        }
+    }
     return lines.join("\n");
 }
 function tryFormatJson(str) {
