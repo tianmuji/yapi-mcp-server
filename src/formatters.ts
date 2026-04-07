@@ -23,7 +23,7 @@ export function formatInterfaceDetail(data: any): string {
   if (!data) return "Interface not found.";
 
   const lines: string[] = [];
-  lines.push(`## ${data.title || "Untitled"}`);
+  lines.push(`**${data.title || "Untitled"}**`);
   lines.push(`**Method:** ${data.method?.toUpperCase() || "?"}`);
   lines.push(`**Path:** ${data.path || "/"}`);
   lines.push(`**Status:** ${data.status || "unknown"}`);
