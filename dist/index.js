@@ -124,7 +124,24 @@ server.tool("get_api_detail", "Get detailed definition of a single API interface
     if (res.errcode !== 0) {
         return { content: [{ type: "text", text: `Error: ${res.errmsg}` }] };
     }
-    return { content: [{ type: "text", text: (0, formatters_js_1.formatInterfaceDetail)(res.data) }] };
+    // Fetch project info to get environment domains
+    let envInfo = "";
+    if (res.data?.project_id) {
+        try {
+            const projRes = await client.getProject(String(res.data.project_id));
+            if (projRes.errcode === 0 && projRes.data?.env?.length > 0) {
+                const basePath = projRes.data.basepath || "";
+                const apiPath = res.data.path || "";
+                const lines = ["\n## Full URLs"];
+                for (const e of projRes.data.env) {
+                    lines.push(`  - **${e.name}**: ${e.domain}${basePath}${apiPath}`);
+                }
+                envInfo = lines.join("\n");
+            }
+        }
+        catch { }
+    }
+    return { content: [{ type: "text", text: (0, formatters_js_1.formatInterfaceDetail)(res.data) + envInfo }] };
 });
 // Tool 3: search_api
 server.tool("search_api", "Search API interfaces by path or title keyword within a YApi project", {

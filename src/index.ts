@@ -122,7 +122,25 @@ server.tool(
     if (res.errcode !== 0) {
       return { content: [{ type: "text", text: `Error: ${res.errmsg}` }] };
     }
-    return { content: [{ type: "text", text: formatInterfaceDetail(res.data) }] };
+
+    // Fetch project info to get environment domains
+    let envInfo = "";
+    if (res.data?.project_id) {
+      try {
+        const projRes = await client.getProject(String(res.data.project_id));
+        if (projRes.errcode === 0 && projRes.data?.env?.length > 0) {
+          const basePath = projRes.data.basepath || "";
+          const apiPath = res.data.path || "";
+          const lines = ["\n## Full URLs"];
+          for (const e of projRes.data.env) {
+            lines.push(`  - **${e.name}**: ${e.domain}${basePath}${apiPath}`);
+          }
+          envInfo = lines.join("\n");
+        }
+      } catch {}
+    }
+
+    return { content: [{ type: "text", text: formatInterfaceDetail(res.data) + envInfo }] };
   }
 );
 
