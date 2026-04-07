@@ -132,7 +132,7 @@ server.tool("get_api_detail", "Get detailed definition of a single API interface
             if (projRes.errcode === 0 && projRes.data?.env?.length > 0) {
                 const basePath = projRes.data.basepath || "";
                 const apiPath = res.data.path || "";
-                const lines = ["\n## Full URLs"];
+                const lines = ["\n### Full URLs"];
                 for (const e of projRes.data.env) {
                     lines.push(`  - **${e.name}**: ${e.domain}${basePath}${apiPath}`);
                 }

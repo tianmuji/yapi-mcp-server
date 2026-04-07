@@ -23,7 +23,7 @@ export function formatInterfaceDetail(data: any): string {
   if (!data) return "Interface not found.";
 
   const lines: string[] = [];
-  lines.push(`# ${data.title || "Untitled"}`);
+  lines.push(`## ${data.title || "Untitled"}`);
   lines.push(`**Method:** ${data.method?.toUpperCase() || "?"}`);
   lines.push(`**Path:** ${data.path || "/"}`);
   lines.push(`**Status:** ${data.status || "unknown"}`);
@@ -33,7 +33,7 @@ export function formatInterfaceDetail(data: any): string {
 
   // Request params
   if (data.req_headers && data.req_headers.length > 0) {
-    lines.push("\n## Request Headers");
+    lines.push("\n### Request Headers");
     for (const h of data.req_headers) {
       const req = h.required === "1" ? "*" : "";
       lines.push(`  - ${h.name}${req}: ${h.value || ""} ${h.desc ? `(${h.desc})` : ""}`);
@@ -41,14 +41,14 @@ export function formatInterfaceDetail(data: any): string {
   }
 
   if (data.req_params && data.req_params.length > 0) {
-    lines.push("\n## Path Parameters");
+    lines.push("\n### Path Parameters");
     for (const p of data.req_params) {
       lines.push(`  - ${p.name}: ${p.desc || ""}`);
     }
   }
 
   if (data.req_query && data.req_query.length > 0) {
-    lines.push("\n## Query Parameters");
+    lines.push("\n### Query Parameters");
     for (const q of data.req_query) {
       const req = q.required === "1" ? "*" : "";
       lines.push(`  - ${q.name}${req}: ${q.desc || ""} ${q.example ? `(example: ${q.example})` : ""}`);
@@ -56,7 +56,7 @@ export function formatInterfaceDetail(data: any): string {
   }
 
   if (data.req_body_type) {
-    lines.push(`\n## Request Body (${data.req_body_type})`);
+    lines.push(`\n### Request Body (${data.req_body_type})`);
     if (data.req_body_type === "json" && data.req_body_other) {
       lines.push("```json");
       lines.push(tryFormatJson(data.req_body_other));
@@ -73,7 +73,7 @@ export function formatInterfaceDetail(data: any): string {
 
   // Response
   if (data.res_body) {
-    lines.push(`\n## Response Body (${data.res_body_type || "json"})`);
+    lines.push(`\n### Response Body (${data.res_body_type || "json"})`);
     lines.push("```json");
     lines.push(tryFormatJson(data.res_body));
     lines.push("```");
