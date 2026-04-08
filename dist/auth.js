@@ -59,9 +59,11 @@ function startSsoLogin(config) {
         // Remember which app was active before opening browser
         const previousApp = await getFrontmostApp();
         console.error(`[AUTH] Previous frontmost app: ${previousApp || "unknown"}`);
-        // SSO redirects to: redirect_url?token=xxx (root path, not /callback)
-        const callbackUrl = config.callbackDomain;
-        const encodedCallback = encodeURIComponent(callbackUrl);
+        // SSO redirects to the relay page, which then forwards token to localhost
+        const relayUrl = config.callbackDomain.includes('localhost') || config.callbackDomain.includes('127.0.0.1')
+            ? config.callbackDomain // Direct mode: no relay needed
+            : `${config.callbackDomain}${config.callbackDomain.includes('?') ? '&' : '?'}port=${config.callbackPort}`;
+        const encodedCallback = encodeURIComponent(relayUrl);
         const ssoUrl = `${config.ssoLoginUrl}?platform_id=${config.platformId}&redirect=${encodedCallback}`;
         const server = http_1.default.createServer(async (req, res) => {
             const reqUrl = new url_1.URL(req.url || "/", `http://localhost:${config.callbackPort}`);

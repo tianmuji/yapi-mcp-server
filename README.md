@@ -20,16 +20,6 @@
 
 ## 安装
 
-### 1. 配置 DNS 解析
-
-回调域名需要解析到 `127.0.0.1`，在 `/etc/hosts` 中添加：
-
-```
-127.0.0.1 yapi-mcp-auth.camscanner.com
-```
-
-### 2. 注册到 Claude Code
-
 编辑 `~/.claude/.mcp.json`，在 `mcpServers` 中添加：
 
 ```json
@@ -42,7 +32,7 @@
         "YAPI_BASE_URL": "https://web-api.intsig.net",
         "SSO_LOGIN_URL": "https://web-sso.intsig.net/login",
         "SSO_PLATFORM_ID": "odVOyexj6maKIHAXv9LflO8tw7WNOI4I",
-        "SSO_CALLBACK_DOMAIN": "http://yapi-mcp-auth.camscanner.com:9876",
+        "SSO_CALLBACK_DOMAIN": "https://static-cdn.camscanner.com/camscanner-activity/mcp-auth-callback.html",
         "SSO_CALLBACK_PORT": "9876"
       }
     }
@@ -52,11 +42,9 @@
 
 > 如果文件中已有其他 MCP 配置，将 `yapi` 部分合并到 `mcpServers` 对象中即可。
 
-### 3. 重启 Claude Code
+重启 Claude Code，在对话中调用 `yapi-auth` 完成 SSO 扫码登录即可使用。
 
-重启后在对话中调用 `authenticate` 完成 SSO 扫码登录即可使用。
-
-无需克隆仓库，`npx` 会自动从 GitHub 下载并运行。
+无需克隆仓库、无需配置 hosts 文件，开箱即用。
 
 ## 环境变量说明
 
@@ -65,7 +53,7 @@
 | `YAPI_BASE_URL` | 是 | - | YApi 服务地址 |
 | `SSO_LOGIN_URL` | 否 | `https://web-sso.intsig.net/login` | SSO 登录页 |
 | `SSO_PLATFORM_ID` | 否 | `odVOyexj6maKIHAXv9LflO8tw7WNOI4I` | SSO 平台 ID |
-| `SSO_CALLBACK_DOMAIN` | 是 | - | 回调域名（需解析到 127.0.0.1） |
+| `SSO_CALLBACK_DOMAIN` | 是 | - | 中转页 URL 或本地回调域名 |
 | `SSO_CALLBACK_PORT` | 否 | `9876` | 回调端口 |
 
 ## 使用示例
