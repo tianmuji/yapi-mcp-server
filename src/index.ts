@@ -36,12 +36,13 @@ const ssoConfig: SsoConfig = {
 
 const client = new YApiClient(YAPI_BASE_URL);
 
-// Try to restore saved credentials on startup
-const savedCreds = loadCredentials();
-if (savedCreds) {
-  client.setCredentials(savedCreds);
-  console.error("Restored saved credentials (valid until " + new Date(savedCreds.expiresAt).toLocaleString() + ")");
-}
+// Try to restore saved credentials on startup (async init)
+loadCredentials().then((savedCreds) => {
+  if (savedCreds) {
+    client.setCredentials(savedCreds);
+    console.error("Restored saved credentials (valid until " + new Date(savedCreds.expiresAt).toLocaleString() + ")");
+  }
+});
 
 // --- Helper: check auth before API call ---
 function requireAuth(): string | null {
@@ -82,7 +83,7 @@ server.tool(
   "Clear saved YApi credentials and logout.",
   {},
   async () => {
-    clearCredentials();
+    await clearCredentials();
     client.setCredentials(null as any);
     return { content: [{ type: "text", text: "Logged out. Call 'yapi-auth' to login again." }] };
   }

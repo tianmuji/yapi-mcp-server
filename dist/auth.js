@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -10,116 +43,48 @@ exports.startSsoLogin = startSsoLogin;
 const http_1 = __importDefault(require("http"));
 const https_1 = __importDefault(require("https"));
 const url_1 = require("url");
-const child_process_1 = require("child_process");
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const CREDENTIALS_DIR = path_1.default.join(process.env.HOME || process.env.USERPROFILE || "/tmp", ".yapi-mcp");
-const CREDENTIALS_FILE = path_1.default.join(CREDENTIALS_DIR, "credentials.json");
-/** Load saved credentials from disk */
-function loadCredentials() {
-    try {
-        if (!fs_1.default.existsSync(CREDENTIALS_FILE))
-            return null;
-        const data = JSON.parse(fs_1.default.readFileSync(CREDENTIALS_FILE, "utf-8"));
-        if (data.expiresAt && Date.now() < data.expiresAt) {
-            return data;
-        }
-        // expired
-        return null;
+// Dynamic import for ESM module (mcp-sso-auth)
+let _ssoAuth = null;
+async function getSsoAuth() {
+    if (!_ssoAuth) {
+        _ssoAuth = await Promise.resolve().then(() => __importStar(require("mcp-sso-auth")));
     }
-    catch {
-        return null;
-    }
+    return _ssoAuth;
 }
-/** Save credentials to disk */
-function saveCredentials(creds) {
-    if (!fs_1.default.existsSync(CREDENTIALS_DIR)) {
-        fs_1.default.mkdirSync(CREDENTIALS_DIR, { recursive: true });
+let _credsMgr = null;
+async function getCredsMgr() {
+    if (!_credsMgr) {
+        const { createCredentialsManager } = await getSsoAuth();
+        _credsMgr = createCredentialsManager("yapi-mcp");
     }
-    fs_1.default.writeFileSync(CREDENTIALS_FILE, JSON.stringify(creds, null, 2));
+    return _credsMgr;
 }
-/** Clear saved credentials */
-function clearCredentials() {
-    try {
-        if (fs_1.default.existsSync(CREDENTIALS_FILE))
-            fs_1.default.unlinkSync(CREDENTIALS_FILE);
-    }
-    catch { }
+async function loadCredentials() {
+    const mgr = await getCredsMgr();
+    return mgr.load();
+}
+async function saveCredentials(creds) {
+    const mgr = await getCredsMgr();
+    mgr.save(creds);
+}
+async function clearCredentials() {
+    const mgr = await getCredsMgr();
+    mgr.clear();
 }
 /**
- * Start SSO login flow:
- * 1. Start local HTTP server to receive callback
- * 2. Open browser to SSO login page
- * 3. Wait for SSO to redirect back with token
- * 4. Use token to login to YApi and capture cookies
- * 5. Save credentials
+ * Start SSO login flow using shared mcp-sso-auth module.
  */
-function startSsoLogin(config) {
-    return new Promise(async (resolve, reject) => {
-        // Remember which app was active before opening browser
-        const previousApp = await getFrontmostApp();
-        console.error(`[AUTH] Previous frontmost app: ${previousApp || "unknown"}`);
-        // SSO redirects to the relay page, which then forwards token to localhost
-        const relayUrl = config.callbackDomain.includes('localhost') || config.callbackDomain.includes('127.0.0.1')
-            ? config.callbackDomain // Direct mode: no relay needed
-            : `${config.callbackDomain}${config.callbackDomain.includes('?') ? '&' : '?'}port=${config.callbackPort}`;
-        const encodedCallback = encodeURIComponent(relayUrl);
-        const ssoUrl = `${config.ssoLoginUrl}?platform_id=${config.platformId}&redirect=${encodedCallback}`;
-        const server = http_1.default.createServer(async (req, res) => {
-            const reqUrl = new url_1.URL(req.url || "/", `http://localhost:${config.callbackPort}`);
-            if (reqUrl.pathname === "/") {
-                const ssoToken = reqUrl.searchParams.get("token");
-                if (!ssoToken) {
-                    // First redirect from SSO without token — redirect back to SSO for password input
-                    console.error("[AUTH] Callback received without token, redirecting back to SSO for password...");
-                    res.writeHead(302, { Location: ssoUrl });
-                    res.end();
-                    return;
-                }
-                // Exchange SSO token for YApi session
-                try {
-                    const creds = await exchangeTokenWithYApi(config.yapiBaseUrl, ssoToken);
-                    saveCredentials(creds);
-                    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-                    res.end(`
-            <html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
-              <div style="text-align:center;">
-                <h1 style="color:#52c41a;">&#10003; 登录成功</h1>
-                <p>YApi MCP Server 已获取认证信息，正在返回应用…</p>
-              </div>
-            </body></html>
-            <script>setTimeout(function(){ window.close(); }, 1000);</script>
-          `);
-                    server.close();
-                    // Switch back to the original app
-                    activateApp(previousApp);
-                    resolve(creds);
-                }
-                catch (err) {
-                    res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
-                    res.end(`<h2>登录失败：${err.message}</h2>`);
-                    server.close();
-                    reject(err);
-                }
-            }
-            else {
-                res.writeHead(404);
-                res.end("Not found");
-            }
-        });
-        server.listen(config.callbackPort, () => {
-            console.error(`Auth callback server listening on port ${config.callbackPort}`);
-            console.error(`Opening browser for SSO login...`);
-            openBrowser(ssoUrl);
-        });
-        server.on("error", (err) => {
-            reject(new Error(`Failed to start auth server: ${err.message}`));
-        });
-        // Timeout after 5 minutes
-        setTimeout(() => {
-            server.close();
-            reject(new Error("SSO login timed out (5 minutes)"));
-        }, 5 * 60 * 1000);
+async function startSsoLogin(config) {
+    const { startSsoLogin: ssoLogin } = await getSsoAuth();
+    return ssoLogin({
+        ssoLoginUrl: config.ssoLoginUrl,
+        platformId: config.platformId,
+        callbackDomain: config.callbackDomain,
+        callbackPort: config.callbackPort,
+        serverName: "YApi MCP Server",
+        async exchangeToken(ssoToken) {
+            return exchangeTokenWithYApi(config.yapiBaseUrl, ssoToken);
+        },
     });
 }
 /**
@@ -131,7 +96,6 @@ function exchangeTokenWithYApi(yapiBaseUrl, ssoToken) {
         const url = new url_1.URL(`${yapiBaseUrl}/api/user/login_by_token?token=${encodeURIComponent(ssoToken)}`);
         const mod = url.protocol === "https:" ? https_1.default : http_1.default;
         const req = mod.get(url.toString(), { timeout: 10000 }, (res) => {
-            // YApi responds with a 302 redirect + Set-Cookie headers
             const cookies = res.headers["set-cookie"] || [];
             let yapiToken = "";
             let yapiUid = "";
@@ -145,7 +109,6 @@ function exchangeTokenWithYApi(yapiBaseUrl, ssoToken) {
                 }
             }
             if (!yapiToken || !yapiUid) {
-                // Maybe YApi returned an error page. Read the body for diagnostics.
                 let body = "";
                 res.on("data", (chunk) => (body += chunk));
                 res.on("end", () => {
@@ -157,7 +120,7 @@ function exchangeTokenWithYApi(yapiBaseUrl, ssoToken) {
                 yapiToken,
                 yapiUid,
                 ssoToken,
-                expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+                expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
             };
             resolve(creds);
         });
@@ -166,33 +129,5 @@ function exchangeTokenWithYApi(yapiBaseUrl, ssoToken) {
             req.destroy();
             reject(new Error("YApi login request timed out"));
         });
-    });
-}
-/** Get the frontmost app name (macOS only) */
-function getFrontmostApp() {
-    if (process.platform !== "darwin")
-        return Promise.resolve(null);
-    return new Promise((resolve) => {
-        (0, child_process_1.exec)(`osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`, (err, stdout) => resolve(err ? null : stdout.trim()));
-    });
-}
-/** Activate an app by name (macOS only) */
-function activateApp(appName) {
-    if (!appName || process.platform !== "darwin")
-        return;
-    (0, child_process_1.exec)(`osascript -e 'tell application "${appName}" to activate'`, (err) => {
-        if (err)
-            console.error(`Failed to activate app "${appName}": ${err.message}`);
-    });
-}
-function openBrowser(url) {
-    const cmd = process.platform === "darwin"
-        ? `open "${url}"`
-        : process.platform === "win32"
-            ? `start "" "${url}"`
-            : `xdg-open "${url}"`;
-    (0, child_process_1.exec)(cmd, (err) => {
-        if (err)
-            console.error(`Failed to open browser: ${err.message}`);
     });
 }

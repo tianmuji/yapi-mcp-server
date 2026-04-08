@@ -62,12 +62,13 @@ const ssoConfig = {
     yapiBaseUrl: YAPI_BASE_URL,
 };
 const client = new yapi_client_js_1.YApiClient(YAPI_BASE_URL);
-// Try to restore saved credentials on startup
-const savedCreds = (0, auth_js_1.loadCredentials)();
-if (savedCreds) {
-    client.setCredentials(savedCreds);
-    console.error("Restored saved credentials (valid until " + new Date(savedCreds.expiresAt).toLocaleString() + ")");
-}
+// Try to restore saved credentials on startup (async init)
+(0, auth_js_1.loadCredentials)().then((savedCreds) => {
+    if (savedCreds) {
+        client.setCredentials(savedCreds);
+        console.error("Restored saved credentials (valid until " + new Date(savedCreds.expiresAt).toLocaleString() + ")");
+    }
+});
 // --- Helper: check auth before API call ---
 function requireAuth() {
     if (!client.isAuthenticated()) {
@@ -96,7 +97,7 @@ server.tool("yapi-auth", "Login to YApi via SSO QR code scan. Opens browser for 
 });
 // Tool: yapi-logout
 server.tool("yapi-logout", "Clear saved YApi credentials and logout.", {}, async () => {
-    (0, auth_js_1.clearCredentials)();
+    await (0, auth_js_1.clearCredentials)();
     client.setCredentials(null);
     return { content: [{ type: "text", text: "Logged out. Call 'yapi-auth' to login again." }] };
 });
