@@ -24,9 +24,21 @@
 
 本项目已集成到 `camscanner-plugins` 插件市场，安装后自动配置 MCP Server 并附带 `/yapi` skill。
 
-### 方式二：手动配置
+```bash
+# 1. 添加插件市场（仅首次需要）
+claude plugin marketplace add camscanner-plugins https://gitlab.intsig.net/cs-templates/skills/camscanner-plugins.git
 
-编辑 `~/.claude/.mcp.json`，在 `mcpServers` 中添加：
+# 2. 安装 YApi 插件
+claude plugin install yapi@camscanner-plugins
+```
+
+安装完成后重启 Claude Code，即可使用：
+- **MCP 工具**：自动注册所有 YApi 工具（查询、创建、更新接口等）
+- **Skill**：输入 `/yapi` 激活 YApi 助手，自动引导完成认证和操作
+
+### 方式二：手动配置 MCP Server
+
+如果不使用插件系统，可以手动编辑 `~/.claude/.mcp.json`，在 `mcpServers` 中添加：
 
 ```json
 {
@@ -38,7 +50,7 @@
         "YAPI_BASE_URL": "https://web-api.intsig.net",
         "SSO_LOGIN_URL": "https://web-sso.intsig.net/login",
         "SSO_PLATFORM_ID": "odVOyexj6maKIHAXv9LflO8tw7WNOI4I",
-        "SSO_CALLBACK_DOMAIN": "https://static-cdn.camscanner.com/camscanner-activity/mcp-auth-callback.html",
+        "SSO_CALLBACK_DOMAIN": "https://www-sandbox.camscanner.com/activity/mcp-auth-callback",
         "SSO_CALLBACK_PORT": "9876"
       }
     }
@@ -47,6 +59,8 @@
 ```
 
 > 如果文件中已有其他 MCP 配置，将 `yapi` 部分合并到 `mcpServers` 对象中即可。
+>
+> **注意**：手动配置只提供 MCP 工具，不包含 `/yapi` skill。推荐使用插件安装。
 
 重启 Claude Code，在对话中调用 `yapi-auth` 完成 SSO 扫码登录即可使用。
 
