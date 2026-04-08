@@ -382,7 +382,7 @@ server.tool(
 // Tool 8: create_api
 server.tool(
   "create_api",
-  "Create a new API interface in a YApi project",
+  "Create a new API interface in a YApi project. Supports full structured definition including headers, query params, body fields, and response body.",
   {
     project_id: z.string().describe("YApi project ID"),
     cat_id: z.string().describe("Category ID where the interface will be created"),
@@ -390,13 +390,36 @@ server.tool(
     path: z.string().describe("API path (e.g. /api/hello)"),
     method: z.enum(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]).describe("HTTP method"),
     desc: z.string().optional().describe("Interface description (supports markdown)"),
-    req_body_type: z.enum(["json", "form", "raw"]).optional().describe("Request body type"),
-    req_body_other: z.string().optional().describe("Request body JSON schema or example"),
-    res_body_type: z.enum(["json", "raw"]).optional().describe("Response body type"),
-    res_body: z.string().optional().describe("Response body JSON schema or example"),
     status: z.enum(["undone", "done"]).optional().describe("Interface status (default: undone)"),
+    req_headers: z.array(z.object({
+      name: z.string().describe("Header name, e.g. Content-Type"),
+      value: z.string().optional().describe("Header value, e.g. application/json"),
+      required: z.enum(["0", "1"]).optional().describe("1=required, 0=optional"),
+      desc: z.string().optional().describe("Description"),
+    })).optional().describe("Request headers"),
+    req_query: z.array(z.object({
+      name: z.string().describe("Query parameter name"),
+      required: z.enum(["0", "1"]).optional().describe("1=required, 0=optional"),
+      example: z.string().optional().describe("Example value"),
+      desc: z.string().optional().describe("Description"),
+    })).optional().describe("Query parameters"),
+    req_params: z.array(z.object({
+      name: z.string().describe("Path parameter name"),
+      desc: z.string().optional().describe("Description"),
+    })).optional().describe("Path parameters (e.g. :id in /api/user/:id)"),
+    req_body_type: z.enum(["json", "form", "raw"]).optional().describe("Request body type"),
+    req_body_json: z.any().optional().describe("Request body as JSON object (will be converted to JSON schema string for YApi). Use this instead of req_body_other for convenience."),
+    req_body_form: z.array(z.object({
+      name: z.string().describe("Field name"),
+      type: z.enum(["text", "file"]).optional().describe("Field type"),
+      required: z.enum(["0", "1"]).optional().describe("1=required, 0=optional"),
+      example: z.string().optional().describe("Example value"),
+      desc: z.string().optional().describe("Description"),
+    })).optional().describe("Form body fields (when req_body_type is 'form')"),
+    res_body_type: z.enum(["json", "raw"]).optional().describe("Response body type"),
+    res_body_json: z.any().optional().describe("Response body as JSON object (will be converted to JSON string for YApi). Use this instead of res_body for convenience."),
   },
-  async ({ project_id, cat_id, title, path, method, desc, req_body_type, req_body_other, res_body_type, res_body, status }) => {
+  async ({ project_id, cat_id, title, path, method, desc, status, req_headers, req_query, req_params, req_body_type, req_body_json, req_body_form, res_body_type, res_body_json }) => {
     const authErr = requireAuth();
     if (authErr) return { content: [{ type: "text", text: authErr }] };
 
@@ -411,10 +434,14 @@ server.tool(
 
       if (desc) body.desc = desc;
       if (status) body.status = status;
+      if (req_headers) body.req_headers = req_headers;
+      if (req_query) body.req_query = req_query;
+      if (req_params) body.req_params = req_params;
       if (req_body_type) body.req_body_type = req_body_type;
-      if (req_body_other) body.req_body_other = req_body_other;
+      if (req_body_json) body.req_body_other = typeof req_body_json === "string" ? req_body_json : JSON.stringify(req_body_json);
+      if (req_body_form) body.req_body_form = req_body_form;
       if (res_body_type) body.res_body_type = res_body_type;
-      if (res_body) body.res_body = res_body;
+      if (res_body_json) body.res_body = typeof res_body_json === "string" ? res_body_json : JSON.stringify(res_body_json);
 
       const res = await client.addInterface(body);
       if (res.errcode !== 0) {
@@ -451,43 +478,62 @@ server.tool(
     method: z.enum(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]).optional().describe("New HTTP method"),
     cat_id: z.string().optional().describe("Move to a different category ID"),
     desc: z.string().optional().describe("New description (supports markdown)"),
-    req_body_type: z.enum(["json", "form", "raw"]).optional().describe("Request body type"),
-    req_body_other: z.string().optional().describe("Request body JSON schema or example"),
-    res_body_type: z.enum(["json", "raw"]).optional().describe("Response body type"),
-    res_body: z.string().optional().describe("Response body JSON schema or example"),
     status: z.enum(["undone", "done"]).optional().describe("Interface status"),
+    req_headers: z.array(z.object({
+      name: z.string(),
+      value: z.string().optional(),
+      required: z.enum(["0", "1"]).optional(),
+      desc: z.string().optional(),
+    })).optional().describe("Request headers"),
+    req_query: z.array(z.object({
+      name: z.string(),
+      required: z.enum(["0", "1"]).optional(),
+      example: z.string().optional(),
+      desc: z.string().optional(),
+    })).optional().describe("Query parameters"),
+    req_params: z.array(z.object({
+      name: z.string(),
+      desc: z.string().optional(),
+    })).optional().describe("Path parameters"),
+    req_body_type: z.enum(["json", "form", "raw"]).optional().describe("Request body type"),
+    req_body_json: z.any().optional().describe("Request body as JSON object"),
+    req_body_form: z.array(z.object({
+      name: z.string(),
+      type: z.enum(["text", "file"]).optional(),
+      required: z.enum(["0", "1"]).optional(),
+      example: z.string().optional(),
+      desc: z.string().optional(),
+    })).optional().describe("Form body fields"),
+    res_body_type: z.enum(["json", "raw"]).optional().describe("Response body type"),
+    res_body_json: z.any().optional().describe("Response body as JSON object"),
   },
-  async ({ interface_id, title, path, method, cat_id, desc, req_body_type, req_body_other, res_body_type, res_body, status }) => {
+  async ({ interface_id, title, path, method, cat_id, desc, status, req_headers, req_query, req_params, req_body_type, req_body_json, req_body_form, res_body_type, res_body_json }) => {
     const authErr = requireAuth();
     if (authErr) return { content: [{ type: "text", text: authErr }] };
 
     try {
-      // First get the current interface to preserve existing fields
-      const current = await client.getInterfaceDetail(interface_id);
-      if (current.errcode !== 0) {
-        return { content: [{ type: "text", text: `Error fetching interface: ${current.errmsg}` }] };
-      }
-
       const body: Record<string, any> = { id: Number(interface_id) };
 
-      // Only set fields that are explicitly provided
       if (title !== undefined) body.title = title;
       if (path !== undefined) body.path = path;
       if (method !== undefined) body.method = method.toUpperCase();
       if (cat_id !== undefined) body.catid = cat_id;
       if (desc !== undefined) body.desc = desc;
       if (status !== undefined) body.status = status;
+      if (req_headers !== undefined) body.req_headers = req_headers;
+      if (req_query !== undefined) body.req_query = req_query;
+      if (req_params !== undefined) body.req_params = req_params;
       if (req_body_type !== undefined) body.req_body_type = req_body_type;
-      if (req_body_other !== undefined) body.req_body_other = req_body_other;
+      if (req_body_json !== undefined) body.req_body_other = typeof req_body_json === "string" ? req_body_json : JSON.stringify(req_body_json);
+      if (req_body_form !== undefined) body.req_body_form = req_body_form;
       if (res_body_type !== undefined) body.res_body_type = res_body_type;
-      if (res_body !== undefined) body.res_body = res_body;
+      if (res_body_json !== undefined) body.res_body = typeof res_body_json === "string" ? res_body_json : JSON.stringify(res_body_json);
 
       const res = await client.updateInterface(body);
       if (res.errcode !== 0) {
         return { content: [{ type: "text", text: `Error updating API: ${res.errmsg}` }] };
       }
 
-      // Build a summary of what was changed
       const changes: string[] = [];
       if (title !== undefined) changes.push(`title → "${title}"`);
       if (path !== undefined) changes.push(`path → ${path}`);
@@ -495,10 +541,14 @@ server.tool(
       if (cat_id !== undefined) changes.push(`category → ${cat_id}`);
       if (desc !== undefined) changes.push(`description updated`);
       if (status !== undefined) changes.push(`status → ${status}`);
+      if (req_headers !== undefined) changes.push(`headers updated`);
+      if (req_query !== undefined) changes.push(`query params updated`);
+      if (req_params !== undefined) changes.push(`path params updated`);
       if (req_body_type !== undefined) changes.push(`req_body_type → ${req_body_type}`);
-      if (req_body_other !== undefined) changes.push(`request body updated`);
+      if (req_body_json !== undefined) changes.push(`request body updated`);
+      if (req_body_form !== undefined) changes.push(`form fields updated`);
       if (res_body_type !== undefined) changes.push(`res_body_type → ${res_body_type}`);
-      if (res_body !== undefined) changes.push(`response body updated`);
+      if (res_body_json !== undefined) changes.push(`response body updated`);
 
       return {
         content: [{

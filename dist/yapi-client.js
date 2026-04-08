@@ -18,7 +18,7 @@ class YApiClient {
     isAuthenticated() {
         return !!(this.credentials && Date.now() < this.credentials.expiresAt);
     }
-    request(path, params = {}) {
+    requestOnce(path, params = {}) {
         return new Promise((resolve, reject) => {
             if (!this.credentials) {
                 reject(new Error("Not authenticated. Please call the 'authenticate' tool first."));
@@ -30,7 +30,7 @@ class YApiClient {
             }
             const mod = url.protocol === "https:" ? https_1.default : http_1.default;
             const options = {
-                timeout: 15000,
+                timeout: 30000,
                 headers: {
                     Cookie: `_yapi_token=${this.credentials.yapiToken}; _yapi_uid=${this.credentials.yapiUid}`,
                 },
@@ -54,7 +54,20 @@ class YApiClient {
             });
         });
     }
-    postRequest(path, body) {
+    async request(path, params = {}, retries = 2) {
+        for (let i = 0; i <= retries; i++) {
+            try {
+                return await this.requestOnce(path, params);
+            }
+            catch (err) {
+                if (i === retries || !err.message?.includes("timeout"))
+                    throw err;
+                console.error(`[YApi] Retry ${i + 1}/${retries} for ${path}: ${err.message}`);
+            }
+        }
+        throw new Error(`Request failed after ${retries} retries: ${path}`);
+    }
+    postRequestOnce(path, body) {
         return new Promise((resolve, reject) => {
             if (!this.credentials) {
                 reject(new Error("Not authenticated. Please call the 'authenticate' tool first."));
@@ -65,7 +78,7 @@ class YApiClient {
             const data = JSON.stringify(body);
             const options = {
                 method: "POST",
-                timeout: 15000,
+                timeout: 30000,
                 headers: {
                     Cookie: `_yapi_token=${this.credentials.yapiToken}; _yapi_uid=${this.credentials.yapiUid}`,
                     "Content-Type": "application/json",
@@ -92,6 +105,19 @@ class YApiClient {
             req.write(data);
             req.end();
         });
+    }
+    async postRequest(path, body, retries = 2) {
+        for (let i = 0; i <= retries; i++) {
+            try {
+                return await this.postRequestOnce(path, body);
+            }
+            catch (err) {
+                if (i === retries || !err.message?.includes("timeout"))
+                    throw err;
+                console.error(`[YApi] Retry ${i + 1}/${retries} for ${path}: ${err.message}`);
+            }
+        }
+        throw new Error(`Request failed after ${retries} retries: ${path}`);
     }
     /** Add a new interface */
     async addInterface(body) {

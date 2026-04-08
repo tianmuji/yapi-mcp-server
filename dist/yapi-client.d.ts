@@ -10,7 +10,9 @@ export declare class YApiClient {
     constructor(baseUrl: string);
     setCredentials(creds: Credentials): void;
     isAuthenticated(): boolean;
+    private requestOnce;
     private request;
+    private postRequestOnce;
     private postRequest;
     /** Add a new interface */
     addInterface(body: Record<string, any>): Promise<YApiResponse>;
