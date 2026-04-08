@@ -441,7 +441,10 @@ server.tool(
       if (req_body_json) body.req_body_other = typeof req_body_json === "string" ? req_body_json : JSON.stringify(req_body_json);
       if (req_body_form) body.req_body_form = req_body_form;
       if (res_body_type) body.res_body_type = res_body_type;
-      if (res_body_json) body.res_body = typeof res_body_json === "string" ? res_body_json : JSON.stringify(res_body_json);
+      if (res_body_json) {
+        body.res_body = typeof res_body_json === "string" ? res_body_json : JSON.stringify(res_body_json);
+        body.res_body_is_json_schema = true;
+      }
 
       const res = await client.addInterface(body);
       if (res.errcode !== 0) {
@@ -527,7 +530,10 @@ server.tool(
       if (req_body_json !== undefined) body.req_body_other = typeof req_body_json === "string" ? req_body_json : JSON.stringify(req_body_json);
       if (req_body_form !== undefined) body.req_body_form = req_body_form;
       if (res_body_type !== undefined) body.res_body_type = res_body_type;
-      if (res_body_json !== undefined) body.res_body = typeof res_body_json === "string" ? res_body_json : JSON.stringify(res_body_json);
+      if (res_body_json !== undefined) {
+        body.res_body = typeof res_body_json === "string" ? res_body_json : JSON.stringify(res_body_json);
+        body.res_body_is_json_schema = true;
+      }
 
       const res = await client.updateInterface(body);
       if (res.errcode !== 0) {

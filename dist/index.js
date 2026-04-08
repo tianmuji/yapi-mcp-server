@@ -399,8 +399,10 @@ server.tool("create_api", "Create a new API interface in a YApi project. Support
             body.req_body_form = req_body_form;
         if (res_body_type)
             body.res_body_type = res_body_type;
-        if (res_body_json)
+        if (res_body_json) {
             body.res_body = typeof res_body_json === "string" ? res_body_json : JSON.stringify(res_body_json);
+            body.res_body_is_json_schema = true;
+        }
         const res = await client.addInterface(body);
         if (res.errcode !== 0) {
             return { content: [{ type: "text", text: `Error creating API: ${res.errmsg}` }] };
@@ -491,8 +493,10 @@ server.tool("update_api", "Update an existing API interface. Only provided field
             body.req_body_form = req_body_form;
         if (res_body_type !== undefined)
             body.res_body_type = res_body_type;
-        if (res_body_json !== undefined)
+        if (res_body_json !== undefined) {
             body.res_body = typeof res_body_json === "string" ? res_body_json : JSON.stringify(res_body_json);
+            body.res_body_is_json_schema = true;
+        }
         const res = await client.updateInterface(body);
         if (res.errcode !== 0) {
             return { content: [{ type: "text", text: `Error updating API: ${res.errmsg}` }] };
