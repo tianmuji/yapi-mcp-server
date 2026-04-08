@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "mcp-sso-auth": "github:tianmuji/mcp-sso-auth",
+    "mcp-sso-auth": "git+https://gitlab.intsig.net/cs-templates/skills/mcp-sso-auth.git",
     "zod": "^4.3.6"
   },
   "devDependencies": {
