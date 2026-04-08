@@ -6,19 +6,25 @@
 
 | 工具 | 说明 |
 |------|------|
-| `authenticate` | SSO 扫码登录 |
-| `logout` | 退出登录 |
+| `yapi-auth` | SSO 扫码登录（支持扫码 + 密码两步认证） |
+| `yapi-logout` | 退出登录 |
 | `list_projects` | 列出所有项目 |
 | `get_project_info` | 获取项目信息 |
 | `list_apis` | 列出项目下所有接口（按分类） |
 | `get_api_detail` | 获取接口详情 |
 | `search_api` | 搜索接口 |
-| `create_api` | 创建新接口 |
-| `update_api` | 修改接口 |
+| `create_api` | 创建新接口（支持结构化 headers/query/body） |
+| `update_api` | 修改接口（支持结构化 headers/query/body） |
 | `export_swagger` | 导出 Swagger 文档 |
 | `import_api_docs` | 批量导出接口文档 |
 
 ## 安装
+
+### 方式一：通过插件安装（推荐）
+
+本项目已集成到 `camscanner-plugins` 插件市场，安装后自动配置 MCP Server 并附带 `/yapi` skill。
+
+### 方式二：手动配置
 
 编辑 `~/.claude/.mcp.json`，在 `mcpServers` 中添加：
 
@@ -27,7 +33,7 @@
   "mcpServers": {
     "yapi": {
       "command": "npx",
-      "args": ["-y", "github:tianmuji/yapi-mcp-server"],
+      "args": ["-y", "git+https://gitlab.intsig.net/cs-templates/skills/yapi-mcp-server.git"],
       "env": {
         "YAPI_BASE_URL": "https://web-api.intsig.net",
         "SSO_LOGIN_URL": "https://web-sso.intsig.net/login",
@@ -65,14 +71,22 @@
 # 查看接口
 > 查看项目 3470 的所有接口
 
-# 创建接口
-> 在项目 3959 分类 69247 下创建一个 POST /api/test 接口
+# 搜索接口
+> 搜索项目 3470 中包含 "脱敏" 的接口
+
+# 创建接口（支持完整的结构化定义）
+> 在项目 3959 分类 69247 下创建一个 POST /api/test 接口，
+> 包含 Content-Type header、token query 参数、JSON body 和响应体
 
 # 复制接口
 > 把项目 3470 的批量脱敏接口复制到项目 3959
+
+# 批量导出
+> 导出项目 3470 的所有接口文档
 ```
 
 ## 认证信息
 
 - 认证信息保存在 `~/.yapi-mcp/credentials.json`
-- 有效期 7 天，过期后重新 `authenticate`
+- 有效期 7 天，过期后重新 `yapi-auth`
+- SSO 支持两步认证（扫码验证 + 密码输入）
