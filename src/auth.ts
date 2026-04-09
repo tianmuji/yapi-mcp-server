@@ -1,13 +1,15 @@
+import fs from "fs";
+import path from "path";
+import os from "os";
 import http from "http";
 import https from "https";
 import { URL } from "url";
+import { chromium } from "playwright-core";
 
 export interface SsoConfig {
-  ssoLoginUrl: string;
-  platformId: string;
-  callbackDomain: string;
-  callbackPort: number;
   yapiBaseUrl: string;
+  ssoLoginUrl: string;
+  ssoPlatformId: string;
 }
 
 export interface Credentials {
@@ -17,54 +19,151 @@ export interface Credentials {
   expiresAt: number;
 }
 
-// Dynamic import for ESM module (mcp-sso-auth)
-let _ssoAuth: any = null;
-async function getSsoAuth() {
-  if (!_ssoAuth) {
-    _ssoAuth = await import("mcp-sso-auth");
-  }
-  return _ssoAuth;
-}
+// --- Credentials persistence ---
 
-let _credsMgr: any = null;
-async function getCredsMgr() {
-  if (!_credsMgr) {
-    const { createCredentialsManager } = await getSsoAuth();
-    _credsMgr = createCredentialsManager("yapi-mcp");
-  }
-  return _credsMgr;
-}
+const CREDS_DIR = path.join(os.homedir(), ".yapi-mcp");
+const CREDS_FILE = path.join(CREDS_DIR, "credentials.json");
+const BROWSER_DATA_DIR = path.join(CREDS_DIR, "browser-data");
 
 export async function loadCredentials(): Promise<Credentials | null> {
-  const mgr = await getCredsMgr();
-  return mgr.load() as Credentials | null;
+  try {
+    if (!fs.existsSync(CREDS_FILE)) return null;
+    const data = JSON.parse(fs.readFileSync(CREDS_FILE, "utf-8"));
+    if (data && data.expiresAt > Date.now()) return data;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export async function saveCredentials(creds: Credentials): Promise<void> {
-  const mgr = await getCredsMgr();
-  mgr.save(creds);
+  if (!fs.existsSync(CREDS_DIR)) fs.mkdirSync(CREDS_DIR, { recursive: true });
+  fs.writeFileSync(CREDS_FILE, JSON.stringify(creds, null, 2));
 }
 
 export async function clearCredentials(): Promise<void> {
-  const mgr = await getCredsMgr();
-  mgr.clear();
+  try { fs.unlinkSync(CREDS_FILE); } catch { /* ignore */ }
+}
+
+// --- Find system Chromium installed by Playwright ---
+
+function findChromium(): string | undefined {
+  const cacheDir = path.join(os.homedir(), "Library", "Caches", "ms-playwright");
+  if (!fs.existsSync(cacheDir)) return undefined;
+
+  const dirs = fs.readdirSync(cacheDir)
+    .filter(d => d.startsWith("chromium-"))
+    .sort()
+    .reverse();
+
+  for (const dir of dirs) {
+    const candidates = [
+      path.join(cacheDir, dir, "chrome-mac-arm64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
+      path.join(cacheDir, dir, "chrome-mac", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
+      path.join(cacheDir, dir, "chrome-mac-arm64", "Chromium.app", "Contents", "MacOS", "Chromium"),
+      path.join(cacheDir, dir, "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"),
+      path.join(cacheDir, dir, "chrome-linux", "chrome"),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+  }
+  return undefined;
 }
 
 /**
- * Start SSO login flow using shared mcp-sso-auth module.
+ * Launch browser for SSO login, capture the sso_token from redirect,
+ * then exchange it with YApi for _yapi_token + _yapi_uid.
  */
 export async function startSsoLogin(config: SsoConfig): Promise<Credentials> {
-  const { startSsoLogin: ssoLogin } = await getSsoAuth();
-  return ssoLogin({
-    ssoLoginUrl: config.ssoLoginUrl,
-    platformId: config.platformId,
-    callbackDomain: config.callbackDomain,
-    callbackPort: config.callbackPort,
-    serverName: "YApi MCP Server",
-    async exchangeToken(ssoToken: string): Promise<Credentials> {
-      return exchangeTokenWithYApi(config.yapiBaseUrl, ssoToken);
-    },
+  const execPath = findChromium();
+  if (!execPath) {
+    throw new Error(
+      "Cannot find Chromium. Please install Playwright browsers: npx playwright install chromium"
+    );
+  }
+
+  if (!fs.existsSync(BROWSER_DATA_DIR)) fs.mkdirSync(BROWSER_DATA_DIR, { recursive: true });
+
+  // SSO login page with redirect back to YApi — YApi will receive the token via URL
+  const ssoUrl = `${config.ssoLoginUrl}?platform_id=${config.ssoPlatformId}&redirect=${encodeURIComponent(config.yapiBaseUrl)}`;
+
+  console.error("[Auth] Launching browser for SSO login...");
+  const context = await chromium.launchPersistentContext(BROWSER_DATA_DIR, {
+    headless: false,
+    executablePath: execPath,
+    ignoreHTTPSErrors: true,
   });
+
+  try {
+    const page = context.pages()[0] || await context.newPage();
+
+    // Listen for the redirect to YApi that carries the sso_token
+    const ssoTokenPromise = new Promise<string>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("SSO login timed out (180s)")), 180000);
+
+      context.on("page", async (newPage) => {
+        const url = newPage.url();
+        if (url.includes("login_by_token") || url.includes("token=")) {
+          const parsed = new URL(url);
+          const token = parsed.searchParams.get("token");
+          if (token) { clearTimeout(timeout); resolve(token); }
+        }
+      });
+
+      page.on("response", (response) => {
+        const url = response.url();
+        // Capture when YApi's login_by_token is called (redirect or direct)
+        if (url.includes("/api/user/login_by_token")) {
+          const parsed = new URL(url);
+          const token = parsed.searchParams.get("token");
+          if (token) { clearTimeout(timeout); resolve(token); }
+        }
+      });
+
+      page.on("framenavigated", (frame) => {
+        if (frame !== page.mainFrame()) return;
+        const url = frame.url();
+        // YApi SSO redirect: the SSO redirects to yapiBaseUrl with sso_token as cookie
+        // or the URL contains the token
+        if (url.startsWith(config.yapiBaseUrl)) {
+          // Extract token from cookies set by SSO on .intsig.net domain
+          context.cookies().then(cookies => {
+            const ssoTokenCookie = cookies.find(c => c.name === "sso_token");
+            if (ssoTokenCookie) {
+              clearTimeout(timeout);
+              resolve(ssoTokenCookie.value);
+            }
+          });
+        }
+      });
+    });
+
+    await page.goto(ssoUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+
+    // Check if already logged in (SSO cookie valid, redirected directly to YApi)
+    if (page.url().startsWith(config.yapiBaseUrl)) {
+      const cookies = await context.cookies();
+      const ssoTokenCookie = cookies.find(c => c.name === "sso_token");
+      if (ssoTokenCookie) {
+        console.error("[Auth] Already logged in via SSO, exchanging token...");
+        const creds = await exchangeTokenWithYApi(config.yapiBaseUrl, ssoTokenCookie.value);
+        await context.close();
+        return creds;
+      }
+    }
+
+    console.error("[Auth] Waiting for user to complete SSO login (up to 180s)...");
+    const ssoToken = await ssoTokenPromise;
+
+    console.error("[Auth] SSO token captured, exchanging with YApi...");
+    const creds = await exchangeTokenWithYApi(config.yapiBaseUrl, ssoToken);
+
+    console.error("[Auth] Authentication successful!");
+    return creds;
+  } finally {
+    await context.close();
+  }
 }
 
 /**
@@ -98,13 +197,12 @@ function exchangeTokenWithYApi(yapiBaseUrl: string, ssoToken: string): Promise<C
         return;
       }
 
-      const creds: Credentials = {
+      resolve({
         yapiToken,
         yapiUid,
         ssoToken,
         expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      };
-      resolve(creds);
+      });
     });
 
     req.on("error", reject);

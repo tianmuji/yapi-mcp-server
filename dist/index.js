@@ -44,21 +44,13 @@ const formatters_js_1 = require("./formatters.js");
 const YAPI_BASE_URL = process.env.YAPI_BASE_URL;
 const SSO_LOGIN_URL = process.env.SSO_LOGIN_URL || "https://web-sso.intsig.net/login";
 const SSO_PLATFORM_ID = process.env.SSO_PLATFORM_ID || "odVOyexj6maKIHAXv9LflO8tw7WNOI4I";
-const SSO_CALLBACK_DOMAIN = process.env.SSO_CALLBACK_DOMAIN; // e.g. http://yapi-mcp.example.com:9876
-const SSO_CALLBACK_PORT = parseInt(process.env.SSO_CALLBACK_PORT || "9876", 10);
 if (!YAPI_BASE_URL) {
     console.error("Error: YAPI_BASE_URL environment variable is required");
     process.exit(1);
 }
-if (!SSO_CALLBACK_DOMAIN) {
-    console.error("Error: SSO_CALLBACK_DOMAIN environment variable is required (e.g. http://yapi-mcp.example.com:9876)");
-    process.exit(1);
-}
 const ssoConfig = {
     ssoLoginUrl: SSO_LOGIN_URL,
-    platformId: SSO_PLATFORM_ID,
-    callbackDomain: SSO_CALLBACK_DOMAIN,
-    callbackPort: SSO_CALLBACK_PORT,
+    ssoPlatformId: SSO_PLATFORM_ID,
     yapiBaseUrl: YAPI_BASE_URL,
 };
 const client = new yapi_client_js_1.YApiClient(YAPI_BASE_URL);

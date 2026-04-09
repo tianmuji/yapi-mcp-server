@@ -1,9 +1,7 @@
 export interface SsoConfig {
-    ssoLoginUrl: string;
-    platformId: string;
-    callbackDomain: string;
-    callbackPort: number;
     yapiBaseUrl: string;
+    ssoLoginUrl: string;
+    ssoPlatformId: string;
 }
 export interface Credentials {
     yapiToken: string;
@@ -15,6 +13,7 @@ export declare function loadCredentials(): Promise<Credentials | null>;
 export declare function saveCredentials(creds: Credentials): Promise<void>;
 export declare function clearCredentials(): Promise<void>;
 /**
- * Start SSO login flow using shared mcp-sso-auth module.
+ * Launch browser for SSO login, capture the sso_token from redirect,
+ * then exchange it with YApi for _yapi_token + _yapi_uid.
  */
 export declare function startSsoLogin(config: SsoConfig): Promise<Credentials>;
