@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod/v3";
 import { YApiClient } from "./yapi-client.js";
-import { loadCredentials, startSsoLogin, clearCredentials, type SsoConfig } from "./auth.js";
+import { loadCredentials, saveCredentials, startSsoLogin, clearCredentials, type SsoConfig } from "./auth.js";
 import {
   formatListMenu,
   formatInterfaceDetail,
@@ -70,6 +70,7 @@ server.tool(
     try {
       const creds = await startSsoLogin(ssoConfig);
       client.setCredentials(creds);
+      await saveCredentials(creds);
       return { content: [{ type: "text", text: "Authentication successful! You can now use all YApi tools." }] };
     } catch (err: any) {
       return { content: [{ type: "text", text: `Authentication failed: ${err.message}` }] };

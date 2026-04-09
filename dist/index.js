@@ -90,6 +90,7 @@ server.tool("yapi-auth", "Login to YApi via SSO QR code scan. Opens browser for 
     try {
         const creds = await (0, auth_js_1.startSsoLogin)(ssoConfig);
         client.setCredentials(creds);
+        await (0, auth_js_1.saveCredentials)(creds);
         return { content: [{ type: "text", text: "Authentication successful! You can now use all YApi tools." }] };
     }
     catch (err) {
