@@ -1,0 +1,14 @@
+{
+  "name": "camscanner-plugins",
+  "owner": {
+    "name": "CamScanner"
+  },
+  "plugins": [
+    {
+      "name": "yapi",
+      "description": "YApi API documentation management plugin. Search, query, create, and export API documentation via YApi MCP server.",
+      "source": "./plugins/yapi",
+      "category": "development"
+    }
+  ]
+}

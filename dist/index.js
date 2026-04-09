@@ -62,15 +62,16 @@ const ssoConfig = {
     yapiBaseUrl: YAPI_BASE_URL,
 };
 const client = new yapi_client_js_1.YApiClient(YAPI_BASE_URL);
-// Try to restore saved credentials on startup (async init)
-(0, auth_js_1.loadCredentials)().then((savedCreds) => {
-    if (savedCreds) {
-        client.setCredentials(savedCreds);
-        console.error("Restored saved credentials (valid until " + new Date(savedCreds.expiresAt).toLocaleString() + ")");
+// --- Helper: check auth before API call (loads saved credentials if needed) ---
+async function requireAuth() {
+    if (!client.isAuthenticated()) {
+        // Try to restore saved credentials from disk
+        const savedCreds = await (0, auth_js_1.loadCredentials)();
+        if (savedCreds) {
+            client.setCredentials(savedCreds);
+            console.error("Restored saved credentials (valid until " + new Date(savedCreds.expiresAt).toLocaleString() + ")");
+        }
     }
-});
-// --- Helper: check auth before API call ---
-function requireAuth() {
     if (!client.isAuthenticated()) {
         return "Not authenticated. Please call the 'yapi-auth' tool first to login via SSO.";
     }
@@ -105,7 +106,7 @@ server.tool("yapi-logout", "Clear saved YApi credentials and logout.", {}, async
 server.tool("list_apis", "List all API interfaces grouped by category for a YApi project", {
     project_id: v3_1.z.string().describe("YApi project ID"),
 }, async ({ project_id }) => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     const res = await client.getInterfaceListMenu(project_id);
@@ -118,7 +119,7 @@ server.tool("list_apis", "List all API interfaces grouped by category for a YApi
 server.tool("get_api_detail", "Get detailed definition of a single API interface (params, request body, response schema)", {
     interface_id: v3_1.z.string().describe("YApi interface ID (from list_apis result)"),
 }, async ({ interface_id }) => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     const res = await client.getInterfaceDetail(interface_id);
@@ -149,7 +150,7 @@ server.tool("search_api", "Search API interfaces by path or title keyword within
     project_id: v3_1.z.string().describe("YApi project ID"),
     keyword: v3_1.z.string().describe("Search keyword (matches against path and title)"),
 }, async ({ project_id, keyword }) => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     const res = await client.getInterfaceListMenu(project_id);
@@ -178,7 +179,7 @@ server.tool("search_api", "Search API interfaces by path or title keyword within
 server.tool("get_project_info", "Get basic information about a YApi project", {
     project_id: v3_1.z.string().describe("YApi project ID"),
 }, async ({ project_id }) => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     const res = await client.getProject(project_id);
@@ -191,7 +192,7 @@ server.tool("get_project_info", "Get basic information about a YApi project", {
 server.tool("export_swagger", "Export the project's API documentation in Swagger/OpenAPI format", {
     project_id: v3_1.z.string().describe("YApi project ID"),
 }, async ({ project_id }) => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     const res = await client.exportSwagger(project_id);
@@ -209,7 +210,7 @@ server.tool("import_api_docs", "Batch import full API documentation for a YApi p
     keyword: v3_1.z.string().optional().describe("Filter APIs by keyword (matches path or title). If omitted, imports all APIs."),
     save_to_file: v3_1.z.string().optional().describe("Optional: absolute file path to save the documentation as markdown (e.g. /tmp/api-docs.md)"),
 }, async ({ project_id, cat_id, keyword, save_to_file }) => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     // Step 1: Get all interfaces
@@ -312,7 +313,7 @@ server.tool("import_api_docs", "Batch import full API documentation for a YApi p
 });
 // Tool 7: list_projects
 server.tool("list_projects", "List all YApi groups and projects the current user has access to", {}, async () => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     const groupRes = await client.getGroupList();
@@ -370,7 +371,7 @@ server.tool("create_api", "Create a new API interface in a YApi project. Support
     res_body_type: v3_1.z.enum(["json", "raw"]).optional().describe("Response body type"),
     res_body_json: v3_1.z.any().optional().describe("Response body as JSON object (will be converted to JSON string for YApi). Use this instead of res_body for convenience."),
 }, async ({ project_id, cat_id, title, path, method, desc, status, req_headers, req_query, req_params, req_body_type, req_body_json, req_body_form, res_body_type, res_body_json }) => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     try {
@@ -462,7 +463,7 @@ server.tool("update_api", "Update an existing API interface. Only provided field
     res_body_type: v3_1.z.enum(["json", "raw"]).optional().describe("Response body type"),
     res_body_json: v3_1.z.any().optional().describe("Response body as JSON object"),
 }, async ({ interface_id, title, path, method, cat_id, desc, status, req_headers, req_query, req_params, req_body_type, req_body_json, req_body_form, res_body_type, res_body_json }) => {
-    const authErr = requireAuth();
+    const authErr = await requireAuth();
     if (authErr)
         return { content: [{ type: "text", text: authErr }] };
     try {
