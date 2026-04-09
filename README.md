@@ -20,9 +20,11 @@
 
 ## 安装
 
-### 方式一：通过插件安装（推荐）
+> 前提条件：需要安装 [Node.js](https://nodejs.org/)（自带 npx）
 
-本项目已集成到 `camscanner-plugins` 插件市场，安装后自动配置 MCP Server 并附带 `/yapi` skill。
+### Mac / Linux（插件安装，推荐）
+
+通过插件安装可同时获得 MCP 工具和 `/yapi` skill：
 
 ```bash
 # 1. 添加插件市场（仅首次需要）
@@ -36,31 +38,9 @@ claude plugin install yapi@camscanner-plugins
 - **MCP 工具**：自动注册所有 YApi 工具（查询、创建、更新接口等）
 - **Skill**：输入 `/yapi` 激活 YApi 助手，自动引导完成认证和操作
 
-### 方式二：手动配置 MCP Server
+### Windows（手动配置）
 
-编辑 `~/.claude/.mcp.json`，在 `mcpServers` 中添加：
-
-**Mac / Linux：**
-
-```json
-{
-  "mcpServers": {
-    "yapi": {
-      "command": "npx",
-      "args": ["-y", "git+https://gitlab.intsig.net/cs-templates/skills/yapi-mcp-server.git"],
-      "env": {
-        "YAPI_BASE_URL": "https://web-api.intsig.net",
-        "SSO_LOGIN_URL": "https://web-sso.intsig.net/login",
-        "SSO_PLATFORM_ID": "odVOyexj6maKIHAXv9LflO8tw7WNOI4I",
-        "SSO_CALLBACK_DOMAIN": "https://www-sandbox.camscanner.com/activity/mcp-auth-callback",
-        "SSO_CALLBACK_PORT": "9876"
-      }
-    }
-  }
-}
-```
-
-**Windows**（配置文件路径：`%USERPROFILE%\.claude\.mcp.json`）：
+Windows 上 `npx` 需要 `cmd /c` 包装，请直接编辑配置文件 `%USERPROFILE%\.claude\.mcp.json`：
 
 ```json
 {
@@ -81,8 +61,6 @@ claude plugin install yapi@camscanner-plugins
 ```
 
 > 如果文件中已有其他 MCP 配置，将 `yapi` 部分合并到 `mcpServers` 对象中即可。
->
-> **注意**：手动配置只提供 MCP 工具，不包含 `/yapi` skill。推荐使用方式一插件安装。
 
 重启 Claude Code，在对话中调用 `yapi-auth` 完成 SSO 扫码登录即可使用。
 
