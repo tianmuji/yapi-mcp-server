@@ -94,6 +94,17 @@ server.tool("yapi-auth", "Login to YApi via SSO QR code scan. Opens browser for 
         return { content: [{ type: "text", text: "Authentication successful! You can now use all YApi tools." }] };
     }
     catch (err) {
+        // Detect SSO pre-verification (e.g. security campaign pre-check, QR scan without token)
+        if (err.message?.includes("pre-verification")) {
+            return {
+                content: [{
+                        type: "text",
+                        text: "SSO pre-verification completed (no token returned yet). " +
+                            "This may be a security campaign (护网行动) pre-check, not the final login step. " +
+                            "Please call 'yapi-auth' again immediately to complete authentication.",
+                    }],
+            };
+        }
         return { content: [{ type: "text", text: `Authentication failed: ${err.message}` }] };
     }
 });
